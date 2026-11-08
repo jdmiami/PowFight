@@ -3,7 +3,6 @@
  * The vote control. One ticket per audition; voting is optimistic, one vote per role, switching
  * roles' picks asks first, and your own reel never shows a ticket (see ShareButton).
  */
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 interface Props {
@@ -22,7 +21,6 @@ interface Props {
 }
 
 export function Ticket({ auditionId, count, voted, currentPickId, currentPickName, open, signedIn, compact, tiny, onChange }: Props) {
-  const router = useRouter();
   // Optimistic local state, re-synced when the server props change (keyed by the props themselves).
   const [state, setState] = useState({ voted, count, key: `${voted}|${count}` });
   if (state.key !== `${voted}|${count}`) setState({ voted, count, key: `${voted}|${count}` });
@@ -36,7 +34,7 @@ export function Ticket({ auditionId, count, voted, currentPickId, currentPickNam
 
   async function toggle() {
     if (!open) return;
-    if (!signedIn) { router.push(`/login?next=${encodeURIComponent(location.pathname)}`); return; }
+    if (!signedIn) { location.assign(`/login?next=${encodeURIComponent(location.pathname)}`); return; }
     if (!state.voted && currentPickId && currentPickId !== auditionId && !confirm) { setConfirm(true); setTimeout(() => setConfirm(false), 2500); return; }
     setConfirm(false); setErr(null);
     const next = state.voted ? { voted: false, count: state.count - 1 } : { voted: true, count: state.count + 1 };
@@ -44,7 +42,6 @@ export function Ticket({ auditionId, count, voted, currentPickId, currentPickNam
     try { navigator.vibrate?.(8); } catch {}
     try {
       await send(state.voted ? 'DELETE' : 'POST');
-      router.refresh();
     } catch (e) {
       setState({ voted: state.voted, count: state.count, key: state.key }); onChange?.({ voted: state.voted, count: state.count });
       setErr(e instanceof Error ? e.message : 'Could not vote');
@@ -60,7 +57,7 @@ export function Ticket({ auditionId, count, voted, currentPickId, currentPickNam
       )}
       <button onClick={toggle} disabled={!open} aria-pressed={state.voted} className={`ticket ${state.voted ? 'ticket-on' : ''} ${compact || tiny ? 'compact' : ''} ${tiny ? 'tiny' : ''}`} aria-label={state.voted ? 'Your pick' : 'Vote'}>
         <span className="ticket-l">
-          <span className="t-num">{state.count}</span>
+          <span className="roll-box"><span key={state.count} className="roll t-num">{state.count}</span></span>
           {!tiny && <span>{state.voted ? (compact ? 'PICK' : 'YOUR PICK') : open ? 'VOTE' : 'VOTES'}</span>}
         </span>
         <span className="ticket-r">{state.voted ? '★' : '☆'}</span>

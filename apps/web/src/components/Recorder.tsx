@@ -307,9 +307,11 @@ export function Recorder({ lines, mode, uploadUrl, doneLineIds = [], cues = {}, 
             <div className="hairline mt-3 pt-2 flex items-center justify-between gap-2">
               <SpellingToggle modern={modern} onChange={setModern} />
               <div className="flex items-center gap-2 t-caption text-paper-ink-2">
-                <button onClick={() => setSizeIdx((s) => Math.max(0, s - 1))} className="px-2" aria-label="Smaller prompter text">A−</button>
-                <button onClick={() => setSizeIdx((s) => Math.min(SIZES.length - 1, s + 1))} className="px-2 text-base" aria-label="Larger prompter text">A+</button>
-                <select value={pace} onChange={(e) => setPace(Number(e.target.value))} className="bg-transparent" aria-label="Prompter pace"><option value={0.8}>Slow</option><option value={1}>Normal</option><option value={1.2}>Brisk</option></select>
+                <button onClick={() => setSizeIdx((s) => Math.max(0, s - 1))} className="h-9 w-9 rounded-full border border-paper-ink/25" aria-label="Smaller prompter text">A−</button>
+                <button onClick={() => setSizeIdx((s) => Math.min(SIZES.length - 1, s + 1))} className="h-9 w-9 rounded-full border border-paper-ink/25 text-base" aria-label="Larger prompter text">A+</button>
+                <span className="inline-flex rounded-full border border-paper-ink/25 overflow-hidden" role="radiogroup" aria-label="Prompter pace">
+                  {[[0.8, 'Slow'], [1, 'Normal'], [1.2, 'Brisk']].map(([v, l]) => <button key={String(v)} role="radio" aria-checked={pace === v} onClick={() => setPace(Number(v))} className={`h-9 px-3 ${pace === v ? 'bg-paper-ink text-paper' : ''}`}>{l}</button>)}
+                </span>
               </div>
             </div>
           </div>
@@ -364,6 +366,7 @@ export function Recorder({ lines, mode, uploadUrl, doneLineIds = [], cues = {}, 
 
 function Takeover({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   void onClose;
+  useEffect(() => { document.body.classList.add('takeover'); return () => document.body.classList.remove('takeover'); }, []);
   return <div className="fixed inset-0 z-50 bg-black text-ink-1 overflow-hidden md:flex md:items-center md:justify-center" role="dialog" aria-modal="true" style={{ height: '100dvh' }}><div className="stage">{children}</div></div>;
 }
 

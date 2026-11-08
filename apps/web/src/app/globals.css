@@ -79,7 +79,7 @@ body {
 /* ---- surfaces ---- */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .playbill {
-  position: relative; background: var(--paper); color: var(--paper-ink); border-radius: 4px; padding: 20px;
+  position: relative; max-width: 42rem; background: var(--paper); color: var(--paper-ink); border-radius: 4px; padding: 20px;
   box-shadow: 0 1px 0 rgba(0,0,0,.5), 0 16px 40px -16px rgba(0,0,0,.7);
 }
 .playbill::before { content: ""; position: absolute; inset: 0; border-radius: 4px; pointer-events: none; opacity: .06;
@@ -115,6 +115,8 @@ body {
 .poster::after { content: ""; position: absolute; inset: 8px; border: 1px solid rgba(244,237,228,.35); border-radius: 3px; pointer-events: none; z-index: 2; }
 .poster-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(9,7,10,0) 55%, rgba(9,7,10,.85) 100%); z-index: 1; }
 .poster-name { font-family: var(--font-display); font-style: italic; font-variation-settings: "opsz" 48, "SOFT" 30; font-weight: 450; font-size: 1.375rem; line-height: 1.5rem; }
+@container (max-width: 200px) { .poster-name { font-size: 1.125rem; line-height: 1.25rem; } }
+.poster { container-type: inline-size; }
 .poster-big { font-family: var(--font-display); font-variation-settings: "opsz" 144, "WONK" 1; font-weight: 600; font-size: 7rem; line-height: .85; letter-spacing: -0.04em; color: rgba(244,237,228,.16); }
 .seal { width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; font-variant-numeric: tabular-nums; background: rgba(9,7,10,.7); color: var(--ink-1); border: 1px solid rgba(244,237,228,.2); }
 .seal-spot { background: var(--spot); color: #000; border-color: transparent; }
@@ -190,10 +192,31 @@ html { scroll-behavior: smooth; }
 }
 @media (max-width: 767.98px) { .rail-outside { display: none !important; } }
 
-/* Sidebar nav on large screens */
-@media (min-width: 1024px) {
+/* Sidebar nav from tablets up */
+@media (min-width: 768px) {
   :root { --nav-h: 0px; }
-  .with-sidebar { padding-left: 16rem; }
-  .feed > * { height: 100dvh; }
+  .with-sidebar { padding-left: 13.5rem; }
+  .feed > * { height: 100dvh; padding: 1rem 1.5rem 0; }
+  .stage { height: min(calc(100dvh - 2rem), calc((100vw - 13.5rem - 7.5rem) * 16 / 9)); }
 }
-@media (prefers-reduced-motion: reduce) { .rise { animation: none; } ::view-transition-old(root), ::view-transition-new(root) { animation: none; } }
+@media (min-width: 1024px) {
+  .with-sidebar { padding-left: 16rem; }
+  .stage { height: min(calc(100dvh - 2rem), calc((100vw - 16rem - 10rem) * 16 / 9)); }
+}
+
+/* Arrival: house lights dim, content rises. */
+.houselights { animation: dim .9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes dim { from { filter: brightness(1.6) saturate(.6); } to { filter: none; } }
+.lit::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: radial-gradient(60% 45% at 50% 40%, rgba(255,178,36,.22), transparent 70%); animation: spot .7s ease-out both; }
+@keyframes spot { from { opacity: 0; } 30% { opacity: 1; } to { opacity: 0; } }
+.roll-box { display: inline-block; overflow: hidden; height: 1.2em; line-height: 1.2em; vertical-align: bottom; }
+.roll { display: inline-block; animation: roll .22s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes roll { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+.playline { position: absolute; top: 0; left: 0; height: 2px; background: rgba(244,237,228,.6); z-index: 4; transition: width .25s linear; }
+.hint-bounce { animation: hint 1.4s ease-in-out infinite; }
+@keyframes hint { 0%, 100% { transform: translateY(0); opacity: .6; } 50% { transform: translateY(-6px); opacity: 1; } }
+::view-transition-group(*) { overflow: hidden; border-radius: 6px; }
+.shelf { background: linear-gradient(180deg, rgba(9,7,10,0), rgba(9,7,10,.92) 40%, var(--house)); }
+@media (prefers-reduced-motion: reduce) { .rise, .houselights, .lit::after, .roll, .hint-bounce { animation: none; } ::view-transition-old(root), ::view-transition-new(root) { animation: none; } }
+
+.takeover .demo-hide { display: none !important; }

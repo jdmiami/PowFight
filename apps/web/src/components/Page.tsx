@@ -10,6 +10,7 @@ export function Page({ children, back, title, className = '' }: { children: Reac
       )}
       {title && <h1 className="t-title mt-1 mb-4">{title}</h1>}
       {children}
+      <footer className="mt-12 pt-5 border-t border-line t-caption text-ink-3 flex flex-wrap gap-x-3 gap-y-1"><span>Free to watch and vote · $12 to audition</span><Link href="/how-it-works" className="text-ink-2">How it works</Link><Link href="/pricing" className="text-ink-2">Pricing</Link></footer>
     </main>
   );
 }

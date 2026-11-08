@@ -19,7 +19,7 @@ export function PosterFrame({ a, roleName, rank, href, vote }: Props) {
       <Link href={link} className="absolute inset-0 z-[1]" aria-label={`${a.actor.displayName} as ${roleName}`}>
         {a.posterUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={a.posterUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={a.posterUrl} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ viewTransitionName: `poster-${a.id}` }} />
         ) : (
           <div className="absolute inset-0 overflow-hidden flex items-end"><span className="poster-big -mb-4 -ml-2 select-none">{roleName}</span></div>
         )}
@@ -30,7 +30,7 @@ export function PosterFrame({ a, roleName, rank, href, vote }: Props) {
       {a.status === 'won' && <span className="absolute top-3 right-3 z-[3] pill pill-spot text-[10px] tracking-widest">CAST</span>}
       <div className="absolute inset-x-3 bottom-3 z-[3] flex items-end justify-between gap-2 pointer-events-none">
         <div className="min-w-0">
-          <p className="poster-name text-ink-1 truncate">{a.actor.displayName}</p>
+          <p className="poster-name text-ink-1 line-clamp-2">{a.actor.displayName}</p>
           <p className="t-cue text-ink-2 truncate">as {roleName}</p>
         </div>
         {vote && !vote.isMine && (

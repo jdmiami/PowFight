@@ -5,7 +5,7 @@ import { formatUsd } from '@/lib/money';
 import { isDemo } from '@/lib/env';
 import { Page } from '@/components/Page';
 import { SignOut } from './SignOut';
-import { IconChevron } from '@/components/icons';
+import { IconChevron, IconClapper } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Me' };
@@ -21,11 +21,13 @@ export default async function Me() {
   return (
     <Page>
       <header className="flex items-center gap-4 pt-2">
-        <div className="h-16 w-16 rounded-full bg-surface border border-line flex items-center justify-center t-title-sm text-ink-2">{user.displayName.slice(0, 1)}</div>
+        <div className="h-16 w-16 rounded-full bg-surface border border-line overflow-hidden flex items-center justify-center text-ink-3">{auditions.find((a) => a.posterUrl)?.posterUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={auditions.find((a) => a.posterUrl)!.posterUrl!} alt="" className="h-full w-full object-cover" />) : <IconClapper />}</div>
         <div className="min-w-0"><h1 className="t-title truncate">{user.displayName}</h1><p className="t-caption text-ink-2">@{user.handle} · {isStoryteller(user) ? 'Storyteller' : 'Actor'}</p></div>
       </header>
       <div className="grid grid-cols-3 gap-3 mt-5">
-        <div className="card p-3"><p className="t-label text-ink-3">Winnings</p><p className="t-num text-xl mt-1">{formatUsd(Math.max(0, balance))}</p></div>
+        <div className="card p-3"><p className="t-label text-ink-3">Winnings</p><p className={`text-xl mt-1 ${balance > 0 ? 't-num' : 'text-ink-3 tabular-nums'}`}>{formatUsd(Math.max(0, balance))}</p></div>
         <div className="card p-3"><p className="t-label text-ink-3">Roles</p><p className="t-num text-xl mt-1">{won.length}</p></div>
         <div className="card p-3"><p className="t-label text-ink-3">Auditions</p><p className="t-num text-xl mt-1">{auditions.length}</p></div>
       </div>

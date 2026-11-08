@@ -18,7 +18,7 @@ export default function Pricing() {
         </dl>
       </Playbill>
       <p className="text-sm text-ink-2 mt-5">Ten entrants for a role means a {formatUsd(prize * 10)} prize. Winners are paid after the play premieres, which is also when their lines are due.</p>
-      <div className="mt-5"><StorytellerButton /></div>
+      <div className="mt-5 mb-4"><StorytellerButton /></div>
     </Page>
   );
 }

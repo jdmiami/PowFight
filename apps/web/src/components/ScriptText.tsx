@@ -19,7 +19,7 @@ export function useModernSpelling(): [boolean, (v: boolean) => void] {
 export function Verse({ text, modern = true, className = '' }: { text: string; modern?: boolean; className?: string }) {
   const t = modern ? modernize(text) : text;
   return (
-    <span className={`t-script ${className}`}>
+    <span className={`t-script block ${className}`}>
       {t.split('\n').map((l, i) => <span key={i} className="verse-line">{l}</span>)}
     </span>
   );

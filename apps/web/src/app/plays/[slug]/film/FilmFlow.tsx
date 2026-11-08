@@ -33,9 +33,10 @@ export function FilmFlow({ productionId, items, prizeCents }: { productionId: st
   return (
     <div className="space-y-4">
       <div className="card p-4">
-        <p className="t-caption text-spot">{headline}</p>
+        <p className="t-caption text-ink-2">{prizeCents ? <><span className="t-num text-ink-1">{formatUsd(prizeCents)}</span> unlocks at premiere · </> : null}{remaining.length} line{remaining.length === 1 ? '' : 's'} to go</p>
         <div className="mt-2 h-1.5 rounded-full bg-ink-1/15 overflow-hidden"><div className="h-full bg-spot" style={{ width: `${pct}%` }} /></div>
-        <button onClick={() => setOpen({ from: firstMissing })} className="btn-spot w-full mt-4">{doneIds.length ? 'Continue filming' : 'Start filming'} · {items[firstMissing].line.sceneTitle ?? 'next line'}</button>
+        <button onClick={() => setOpen({ from: firstMissing })} className="btn-spot w-full mt-4">{doneIds.length ? 'Continue filming' : 'Start filming'}</button>
+        <p className="t-caption text-ink-3 mt-2 text-center truncate">Next: {items[firstMissing].line.sceneTitle ?? 'next line'}</p>
         <p className="t-caption text-ink-3 mt-2 text-center">A scene at a time is plenty. Progress saves after every take.</p>
       </div>
       <ul className="card divide-y divide-line">
