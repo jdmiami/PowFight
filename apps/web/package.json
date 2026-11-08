@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --experimental-strip-types --test src/lib/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prebuild": "tsc -p ../../packages/script-parser/tsconfig.json"
   },
   "dependencies": {
     "@playhouse/script-parser": "*",
