@@ -1,10 +1,14 @@
-import type { Audition, CastMember, Character, Clip, Line, Production, Profile, RoleBoardEntry, Script } from '../types';
+import type { Audition, CastMember, Character, Clip, FeedItem, FilmQueueItem, Line, Production, Profile, RoleBoardEntry, Script } from '../types';
 import type { ParsedScript } from '@playhouse/script-parser';
 import { isDemo } from '../env';
 
 export interface DataSource {
   // reading
   listProductions(): Promise<Array<Production & { scriptTitle: string; author?: string | null }>>;
+  /** Submitted auditions across open productions, interleaved so consecutive cards vary. */
+  listFeed(opts?: { productionId?: string; characterId?: string; limit?: number }): Promise<FeedItem[]>;
+  /** Lines filmed vs. total dialogue lines, for premiere progress. */
+  productionProgress(productionId: string): Promise<{ filmed: number; total: number; castSize: number; rolesTotal: number }>;
   getProductionBySlug(slug: string): Promise<{ production: Production; script: Script } | null>;
   getRoleBoard(productionId: string): Promise<RoleBoardEntry[]>;
   getRole(productionId: string, characterKey: string): Promise<{ character: Character; sides: Line[] } | null>;
@@ -13,7 +17,7 @@ export interface DataSource {
   getMyVotes(productionId: string, voterId: string): Promise<Record<string, string>>; // characterId -> auditionId
   getCast(productionId: string): Promise<CastMember[]>;
   myAuditions(actorId: string): Promise<Array<Audition & { productionTitle: string; characterName: string; productionSlug: string; characterKey: string }>>;
-  myLinesToFilm(productionId: string, actorId: string): Promise<Array<{ line: Line; character: Character; clip?: Clip }>>;
+  myLinesToFilm(productionId: string, actorId: string): Promise<FilmQueueItem[]>;
   getProfile(id: string): Promise<Profile | null>;
   myBalanceCents(userId: string): Promise<number>;
   // writing

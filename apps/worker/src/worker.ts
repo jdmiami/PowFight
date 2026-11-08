@@ -50,14 +50,14 @@ async function planAuditionReel(auditionId: string, work: string): Promise<{ tit
     .select('id, production_id, character:characters(name), actor:profiles(display_name, handle), production:productions(title)')
     .eq('id', auditionId).single();
   if (!a) throw new Error('audition not found');
-  const { data: clips } = await db.from('clips').select('id, storage_path, line:script_lines(idx, text)')
+  const { data: clips } = await db.from('clips').select('id, storage_path, trim_start_ms, trim_end_ms, line:script_lines(idx, text)')
     .eq('audition_id', auditionId).eq('purpose', 'audition').neq('moderation', 'rejected');
   const sorted = (clips ?? []).sort((x, y) => (x.line as { idx: number }).idx - (y.line as { idx: number }).idx);
   const segments: Segment[] = [{ kind: 'card', text: `${(a.actor as { display_name: string }).display_name} as ${(a.character as { name: string }).name}`, small: (a.production as { title: string }).title, seconds: 2 }];
   for (const c of sorted) {
     const local = path.join(work, `${c.id}.mp4`);
     await download(c.storage_path, local);
-    segments.push({ kind: 'clip', file: local });
+    segments.push({ kind: 'clip', file: local, trimStartMs: c.trim_start_ms, trimEndMs: c.trim_end_ms });
   }
   return { title: `${(a.actor as { handle: string }).handle} audition`, segments };
 }
@@ -67,9 +67,9 @@ async function planProduction(productionId: string, work: string): Promise<{ tit
   const { data: p } = await db.from('productions').select('id, title, script_id, script:scripts(title, author)').eq('id', productionId).single();
   if (!p) throw new Error('production not found');
   const { data: lines } = await db.from('script_lines').select('id, idx, type, text, character:characters(name)').eq('script_id', p.script_id).order('idx');
-  const { data: clips } = await db.from('clips').select('id, line_id, storage_path, created_at')
+  const { data: clips } = await db.from('clips').select('id, line_id, storage_path, trim_start_ms, trim_end_ms, created_at')
     .eq('production_id', productionId).eq('purpose', 'performance').eq('moderation', 'approved').order('created_at', { ascending: false });
-  const latestByLine = new Map<string, { id: string; storage_path: string }>();
+  const latestByLine = new Map<string, { id: string; storage_path: string; trim_start_ms: number | null; trim_end_ms: number | null }>();
   for (const c of clips ?? []) if (!latestByLine.has(c.line_id)) latestByLine.set(c.line_id, c);
 
   const script = p.script as { title: string; author: string | null };
@@ -82,7 +82,7 @@ async function planProduction(productionId: string, work: string): Promise<{ tit
     if (!c) { missing.push(l.id); continue; }
     const local = path.join(work, `${c.id}.mp4`);
     await download(c.storage_path, local);
-    segments.push({ kind: 'clip', file: local, speaker: (l.character as { name: string } | null)?.name });
+    segments.push({ kind: 'clip', file: local, speaker: (l.character as { name: string } | null)?.name, trimStartMs: c.trim_start_ms, trimEndMs: c.trim_end_ms });
   }
   if (missing.length) throw new Error(`${missing.length} dialogue lines have no approved clip`);
   segments.push({ kind: 'card', text: 'FINIS', small: 'Made line by line at theplayhouse.app', seconds: 4 });

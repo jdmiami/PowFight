@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Page } from '@/components/Page';
 export default function NotFound() {
-  return <div className="text-center pt-20 space-y-3"><p className="display text-5xl">Exit, pursued by a bear.</p><p className="text-muted">That page isn&apos;t in the script.</p><Link href="/" className="btn-gold">Back to the marquee</Link></div>;
+  return <Page><div className="text-center pt-24 space-y-4"><p className="t-display">Exit, pursued by a bear.</p><p className="text-ink-2">That page isn’t in the script.</p><Link href="/" className="btn-spot">Back to the auditions</Link></div></Page>;
 }

@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getData } from '@/lib/data';
 import { currentUser } from '@/lib/auth';
-import { VoteButton } from '@/components/VoteButton';
 import { clipUrl } from '@/lib/storage';
+import { ReelPlayer } from './ReelPlayer';
 import { ResumeRecording } from './ResumeRecording';
+import { Page } from '@/components/Page';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,44 +17,26 @@ export default async function AuditionDetail({ params }: { params: Promise<{ id:
   const [board, productions] = await Promise.all([data.getRoleBoard(a.productionId), data.listProductions()]);
   const production = productions.find((p) => p.id === a.productionId);
   const role = board.find((r) => r.character.id === a.characterId);
+  if (!production || !role) notFound();
   const myVotes = user ? await data.getMyVotes(a.productionId, user.id) : {};
   const isMine = user?.id === a.actorId;
-  const open = production?.status === 'casting' && new Date(production.auditionsCloseAt) > new Date();
-  const clipsWithUrls = await Promise.all(a.clips.map(async (c) => ({ ...c, url: c.url ?? (await clipUrl(c.storagePath)) ?? undefined })));
-  const missing = a.sides.filter((s) => !a.clips.some((c) => c.lineId === s.id));
+  const open = production.status === 'casting' && new Date(production.auditionsCloseAt) > new Date();
+  const chapters = await Promise.all(a.sides.map(async (line) => { const c = a.clips.find((x) => x.lineId === line.id); return { line, url: c ? (c.url ?? (await clipUrl(c.storagePath)) ?? undefined) : undefined }; }));
+  const backHref = `/plays/${production.slug}/roles/${role.character.key}`;
+
+  if (isMine && (a.status === 'draft' || a.status === 'pending_payment')) {
+    const missing = a.sides.filter((s) => !a.clips.some((c) => c.lineId === s.id));
+    return (
+      <Page back={{ href: backHref, label: role.character.name }}>
+        <h1 className="t-title mb-2">Your {role.character.name} audition</h1>
+        <p className="text-ink-2 text-sm mb-4">{a.status === 'pending_payment' ? 'Entry not completed.' : missing.length ? `${missing.length} of ${a.sides.length} sides left to record.` : 'All sides recorded. Submit when you’re happy.'}</p>
+        <ResumeRecording auditionId={a.id} sides={a.sides} doneLineIds={a.clips.map((c) => c.lineId)} missing={missing.length} pending={a.status === 'pending_payment'} productionId={a.productionId} characterId={a.characterId} returnPath={`/auditions/${a.id}`} roleName={role.character.name} />
+      </Page>
+    );
+  }
 
   return (
-    <div className="space-y-5">
-      {production && role && <Link href={`/plays/${production.slug}/roles/${role.character.key}`} className="text-sm text-muted">← {role.character.name} in {production.title}</Link>}
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="display text-3xl">{a.actor.displayName}</h1>
-          <p className="text-muted text-sm">@{a.actor.handle} as {role?.character.name} · {a.status}</p>
-        </div>
-        {!isMine && <VoteButton auditionId={a.id} count={a.voteCount} voted={myVotes[a.characterId] === a.id} disabled={!open || !user} />}
-      </header>
-
-      {a.stitchedUrl ? (
-        <video src={a.stitchedUrl} poster={a.posterUrl ?? undefined} controls playsInline className="w-full rounded-2xl border border-line aspect-[9/16] bg-black" />
-      ) : (
-        <div className="space-y-3">
-          {a.sides.map((s, i) => {
-            const clip = clipsWithUrls.find((c) => c.lineId === s.id);
-            return (
-              <div key={s.id} className="card p-3">
-                <p className="text-xs text-gold mb-1">Side {i + 1}</p>
-                <p className="display text-sm whitespace-pre-line mb-2">{s.text}</p>
-                {clip?.url ? <video src={clip.url} controls playsInline className="w-full rounded-xl bg-black aspect-[9/16] max-h-[60vh]" />
-                  : <p className="text-xs text-muted">{isMine ? 'Not recorded yet.' : 'Reel is being stitched…'}</p>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {isMine && (a.status === 'draft' || a.status === 'pending_payment') && (
-        <ResumeRecording auditionId={a.id} sides={a.sides} doneLineIds={a.clips.map((c) => c.lineId)} missing={missing.length} pending={a.status === 'pending_payment'} />
-      )}
-    </div>
+    <ReelPlayer auditionId={a.id} actorName={a.actor.displayName} handle={a.actor.handle} roleName={role.character.name} playTitle={production.title} backHref={backHref}
+      chapters={chapters} stitchedUrl={a.stitchedUrl} posterUrl={a.posterUrl} voteCount={a.voteCount} voted={myVotes[a.characterId] === a.id} currentPickId={myVotes[a.characterId]} open={open} signedIn={Boolean(user)} isMine={isMine} status={a.status} />
   );
 }

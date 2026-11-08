@@ -1,12 +1,11 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getData } from '@/lib/data';
 import { currentUser } from '@/lib/auth';
 import { FilmFlow } from './FilmFlow';
+import { Page } from '@/components/Page';
 
 export const dynamic = 'force-dynamic';
 
-/** Cast members record every line of their role here after winning the audition. */
 export default async function FilmPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const user = await currentUser();
@@ -14,18 +13,19 @@ export default async function FilmPage({ params }: { params: Promise<{ slug: str
   const data = await getData();
   const found = await data.getProductionBySlug(slug);
   if (!found) notFound();
-  const todo = await data.myLinesToFilm(found.production.id, user.id);
-  const remaining = todo.filter((t) => !t.clip);
+  const [items, cast] = await Promise.all([data.myLinesToFilm(found.production.id, user.id), data.getCast(found.production.id)]);
+  const prize = cast.filter((c) => c.actorId === user.id).reduce((s, c) => s + c.prizeCents, 0);
+  const roles = [...new Set(items.map((t) => t.character.name))];
   return (
-    <div className="space-y-4">
-      <Link href={`/plays/${slug}`} className="text-sm text-muted">← {found.production.title}</Link>
-      <h1 className="display text-3xl">Film your lines</h1>
-      {todo.length === 0 ? <p className="text-muted">You&apos;re not in this cast.</p> : (
+    <Page back={{ href: `/plays/${slug}`, label: found.production.title }}>
+      <p className="t-label text-ink-3">Filming</p>
+      <h1 className="t-display mb-1">{roles.join(' & ') || 'Not cast'}</h1>
+      {items.length === 0 ? <p className="text-ink-2">You’re not in this cast.</p> : (
         <>
-          <p className="text-sm text-muted">You play <span className="text-fg">{[...new Set(todo.map((t) => t.character.name))].join(', ')}</span>. {todo.length - remaining.length}/{todo.length} lines filmed. Record them in order; a few at a time is fine, progress is saved.</p>
-          <FilmFlow productionId={found.production.id} lines={todo.map((t) => t.line)} doneLineIds={todo.filter((t) => t.clip).map((t) => t.line.id)} />
+          <p className="text-sm text-ink-2 mb-5">{items.length} lines across {new Set(items.map((t) => t.line.sceneIdx)).size} scene{new Set(items.map((t) => t.line.sceneIdx)).size === 1 ? '' : 's'}. Your scene partner’s cue shows on the prompter so you’re answering someone.</p>
+          <FilmFlow productionId={found.production.id} items={items} prizeCents={prize} />
         </>
       )}
-    </div>
+    </Page>
   );
 }

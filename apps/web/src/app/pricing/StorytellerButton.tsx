@@ -6,7 +6,7 @@ export function StorytellerButton() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   return (
-    <button disabled={busy} className="btn-gold w-full" onClick={async () => {
+    <button disabled={busy} className="btn-spot w-full" onClick={async () => {
       setBusy(true);
       const res = await fetch('/api/checkout/storyteller', { method: 'POST' });
       setBusy(false);

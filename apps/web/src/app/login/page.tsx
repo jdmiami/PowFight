@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { isDemo } from '@/lib/env';
 import { LoginForm } from './LoginForm';
+import { Page } from '@/components/Page';
+import { Wordmark } from '@/components/Wordmark';
 
 export const metadata = { title: 'Sign in' };
 
@@ -8,10 +10,11 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   const { next } = await searchParams;
   if (isDemo) redirect(next ?? '/me');
   return (
-    <div className="space-y-4 pt-8">
-      <h1 className="display text-3xl text-center">Take the stage</h1>
-      <p className="text-sm text-muted text-center">We&apos;ll email you a magic link. No password.</p>
+    <Page>
+      <div className="flex justify-center pt-10 pb-6"><Wordmark /></div>
+      <h1 className="t-title text-center">Take the stage</h1>
+      <p className="text-sm text-ink-2 text-center mt-1 mb-6">We’ll email you a link. No password.</p>
       <LoginForm next={next ?? '/me'} />
-    </div>
+    </Page>
   );
 }

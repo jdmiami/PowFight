@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { fraunces, instrument } from "./fonts";
 import { Nav } from "@/components/Nav";
 import { isDemo } from "@/lib/env";
 
@@ -10,18 +11,14 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "The Play House", statusBarStyle: "black-translucent" },
 };
 
-export const viewport: Viewport = { themeColor: "#0e0608", width: "device-width", initialScale: 1, viewportFit: "cover" };
+export const viewport: Viewport = { themeColor: "#09070a", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${fraunces.variable} ${instrument.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {isDemo && (
-          <div className="bg-gold/15 text-gold text-center text-xs py-1 px-3 border-b border-gold/20">
-            Demo mode: in-memory data, no payments. Set Supabase + Stripe keys to go live.
-          </div>
-        )}
-        <main className="flex-1 w-full max-w-xl mx-auto px-4 pt-4 safe-bottom">{children}</main>
+        {children}
+        {isDemo && <span className="fixed top-2 right-2 z-50 pill pill-glass text-[10px] pointer-events-none" aria-label="Demo mode">demo</span>}
         <Nav />
       </body>
     </html>

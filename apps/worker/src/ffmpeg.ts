@@ -29,21 +29,46 @@ export async function probe(file: string): Promise<{ duration: number; hasAudio:
   };
 }
 
+export interface NormalizeOptions {
+  /** Trim window in ms, from the recorder (half a second before the first word to half a second after the last). */
+  trimStartMs?: number | null;
+  trimEndMs?: number | null;
+  /** Burn a speaker lower-third in the same pass. */
+  speaker?: string;
+}
+
 /**
  * Normalize any phone clip into the house format: 1080x1920 portrait, 30fps, h264 + aac 48k stereo.
- * Letterbox/pillarbox instead of cropping so nothing of the actor's frame is lost, and add a silent
- * audio track when the source has none so the concat demuxer never sees a stream mismatch.
+ *  - Near-portrait sources are padded; wide sources (laptops, landscape phones) are centre-cropped to 9:16
+ *    so faces fill the frame the way the recorder's guide promised.
+ *  - Trims to the recorder's pre/post-roll points with accurate seeking.
+ *  - Audio: high-pass, light denoise, loudness normalization, 40 ms fades so hard cuts never click.
+ *  - Adds a silent track when the source has none so the concat demuxer never sees a stream mismatch.
  */
-export async function normalize(input: string, output: string): Promise<void> {
-  const { hasAudio } = await probe(input);
-  const vf = `scale=${OUTPUT.width}:${OUTPUT.height}:force_original_aspect_ratio=decrease,pad=${OUTPUT.width}:${OUTPUT.height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=${OUTPUT.fps},format=yuv420p`;
+export async function normalize(input: string, output: string, opts: NormalizeOptions = {}): Promise<void> {
+  const info = await probe(input);
+  const aspect = info.width && info.height ? info.width / info.height : 9 / 16;
+  const frame = aspect > 0.6
+    ? `crop=ih*9/16:ih,scale=${OUTPUT.width}:${OUTPUT.height}`
+    : `scale=${OUTPUT.width}:${OUTPUT.height}:force_original_aspect_ratio=decrease,pad=${OUTPUT.width}:${OUTPUT.height}:(ow-iw)/2:(oh-ih)/2:color=black`;
+  const vfParts = [frame, 'setsar=1', `fps=${OUTPUT.fps}`];
+  if (opts.speaker) vfParts.push(`drawtext=text='${escapeDrawtext(opts.speaker)}':fontcolor=0xF4EDE4:fontsize=44:box=1:boxcolor=0x09070AAA:boxborderw=18:x=60:y=h-200:font=sans`);
+  vfParts.push('format=yuv420p');
+  const start = Math.max(0, (opts.trimStartMs ?? 0) / 1000);
+  const end = opts.trimEndMs && opts.trimEndMs > (opts.trimStartMs ?? 0) ? opts.trimEndMs / 1000 : undefined;
+  // Silent sources get an infinite anullsrc track, so always bound the output duration explicitly
+  // (-shortest over-runs by up to a second with lavfi inputs).
+  const dur = end !== undefined ? Math.max(0.5, end - start) : !info.hasAudio && info.duration ? Math.max(0.5, info.duration - start) : undefined;
   const args = ['-y', '-i', input];
-  if (!hasAudio) args.push('-f', 'lavfi', '-i', `anullsrc=channel_layout=stereo:sample_rate=${OUTPUT.audioRate}`, '-shortest');
+  if (!info.hasAudio) args.push('-f', 'lavfi', '-i', `anullsrc=channel_layout=stereo:sample_rate=${OUTPUT.audioRate}`);
+  if (start > 0) args.push('-ss', start.toFixed(3));           // after -i: accurate seek
+  if (dur !== undefined) args.push('-t', dur.toFixed(3));
+  const afade = dur !== undefined ? `,afade=t=out:st=${Math.max(0, dur - 0.04).toFixed(3)}:d=0.04` : '';
   args.push(
-    '-vf', vf,
+    '-vf', vfParts.join(','),
+    '-af', `highpass=f=80,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:st=0:d=0.04${afade}`,
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-profile:v', 'high', '-level', '4.1',
     '-c:a', 'aac', '-b:a', '128k', '-ar', String(OUTPUT.audioRate), '-ac', '2',
-    '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
     '-movflags', '+faststart',
     output,
   );
@@ -115,13 +140,4 @@ export async function concat(segments: string[], output: string): Promise<void> 
 /** Grab a poster frame one second in. */
 export async function poster(video: string, output: string): Promise<void> {
   await run('ffmpeg', ['-y', '-ss', '1', '-i', video, '-frames:v', '1', '-q:v', '3', output]);
-}
-
-/** Lower-third caption burned into a clip (speaker name). Optional; keeps the stitched play legible. */
-export async function captionSpeaker(input: string, speaker: string, output: string): Promise<void> {
-  await run('ffmpeg', [
-    '-y', '-i', input,
-    '-vf', `drawtext=text='${escapeDrawtext(speaker)}':fontcolor=0xF5E6C8:fontsize=44:box=1:boxcolor=0x000000AA:boxborderw=18:x=60:y=h-200:font=sans`,
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-c:a', 'copy', '-movflags', '+faststart', output,
-  ]);
 }

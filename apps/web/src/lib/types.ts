@@ -81,7 +81,32 @@ export interface Clip {
   storagePath: string;
   url?: string;
   durationMs?: number | null;
+  /** Capture timing from the recorder (ms from recording start). The stitcher trims to these. */
+  actionAtMs?: number | null;
+  trimStartMs?: number | null;
+  trimEndMs?: number | null;
   moderation: 'pending' | 'approved' | 'rejected';
+}
+
+/** One card in the audition feed: everything needed to render a reel without more queries. */
+export interface FeedItem {
+  audition: Audition;
+  character: Pick<Character, 'id' | 'key' | 'name' | 'lineCount'>;
+  production: Pick<Production, 'id' | 'slug' | 'title' | 'status' | 'auditionsCloseAt' | 'entryFeeCents' | 'houseFeeCents'>;
+  /** Storage paths of this audition's side clips in script order (resolve to URLs with clipUrl). */
+  clipPaths: string[];
+  rank: number;
+  entrants: number;
+  /** First side's text, for the caption. */
+  caption?: string;
+}
+
+export interface FilmQueueItem {
+  line: Line;
+  character: Character;
+  clip?: Clip;
+  /** What the actor is answering: the previous other-speaker line in the scene, or the scene heading. */
+  cue?: { kind: 'line'; speaker: string; text: string } | { kind: 'heading'; text: string };
 }
 
 export interface CastMember {

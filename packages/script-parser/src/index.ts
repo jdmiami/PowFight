@@ -29,3 +29,4 @@ export function parseUpload(filename: string, data: Buffer, opts: ParseOptions =
     source: opts.source ?? g.source,
   });
 }
+export { modernize, modernizeWord, looksEarlyModern } from './modernize.ts';

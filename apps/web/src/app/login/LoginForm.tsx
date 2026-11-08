@@ -17,11 +17,11 @@ export function LoginForm({ next }: { next: string }) {
   if (sent) return <p className="card p-4 text-center">Check your inbox for the link ✉️</p>;
   return (
     <form onSubmit={submit} className="card p-5 space-y-3">
-      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full rounded-xl bg-bg-2 border border-line px-4 py-3" />
-      <button className="btn-gold w-full">Email me a link</button>
+      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full rounded-xl bg-pit border border-line px-4 py-3 text-ink-1 placeholder:text-ink-3" />
+      <button className="btn-spot w-full">Email me a link</button>
       <button type="button" onClick={google} className="btn-ghost w-full">Continue with Google</button>
-      {err && <p className="text-sm text-red">{err}</p>}
-      <p className="text-[11px] text-muted text-center">By continuing you agree to the Terms and confirm you are 13 or older.</p>
+      {err && <p className="text-sm text-danger">{err}</p>}
+      <p className="text-[11px] text-ink-3 text-center">By continuing you agree to the Terms and confirm you are 13 or older.</p>
     </form>
   );
 }

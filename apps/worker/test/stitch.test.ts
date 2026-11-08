@@ -35,7 +35,7 @@ test('stitches mixed clips and cards into one normalized mp4', { timeout: 120_00
       burnSpeakerNames: true,
       segments: [
         { kind: 'card', text: 'Romeo and Juliet', small: 'The Play House presents', seconds: 2 },
-        { kind: 'clip', file: a, speaker: 'Romeo' },
+        { kind: 'clip', file: a, speaker: 'Romeo', trimStartMs: 500, trimEndMs: 1800 },
         { kind: 'card', text: 'Enter Juliet above', seconds: 1 },
         { kind: 'clip', file: b, speaker: 'Juliet' },
         { kind: 'clip', file: c },
@@ -46,7 +46,8 @@ test('stitches mixed clips and cards into one normalized mp4', { timeout: 120_00
     assert.equal(info.width, 1080);
     assert.equal(info.height, 1920);
     assert.ok(info.hasAudio);
-    assert.ok(info.duration > 7 && info.duration < 9, `duration ${info.duration}`);
+    // 2 (title card) + 1.3 (a trimmed 0.5→1.8) + 1 (direction card) + 1.5 (b) + 1 (c) ≈ 6.8
+    assert.ok(info.duration > 6.6 && info.duration < 7.1, `duration ${info.duration}`);
     assert.ok(r.poster);
   } finally {
     await rm(dir, { recursive: true, force: true });

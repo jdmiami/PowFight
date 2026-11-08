@@ -5,7 +5,7 @@
  */
 import type { ParsedScript } from '@playhouse/script-parser';
 import { pickSides, estimateSeconds, slugify } from '@playhouse/script-parser';
-import type { Audition, CastMember, Character, Clip, Line, Production, Profile, Script } from '../types';
+import type { Audition, CastMember, Character, Clip, FeedItem, FilmQueueItem, Line, Production, Profile, Script } from '../types';
 import type { DataSource } from './index';
 import romeo from '../../../../../content/romeo-and-juliet.json';
 
@@ -69,21 +69,21 @@ if (!store.seeded) {
   const prod: Production = { id: 'p-rj', scriptId: rj.id, slug: 'romeo-and-juliet', title: 'Romeo and Juliet', status: 'casting', entryFeeCents: 1200, houseFeeCents: 200, auditionsCloseAt: closeAt };
   productions.set(prod.id, prod);
 
-  function seedAudition(characterKey: string, actorId: string, voteCount: number) {
+  function seedAudition(characterKey: string, actorId: string, voteCount: number, media: string) {
     const ch = rj.characters.find((c) => c.key === characterKey)!;
-    const a: Audition = { id: uid(), productionId: prod.id, characterId: ch.id, actorId, actor: profiles.get(actorId)!, status: 'submitted', voteCount, submittedAt: now(), createdAt: now(), stitchedUrl: null, posterUrl: null };
+    const a: Audition = { id: uid(), productionId: prod.id, characterId: ch.id, actorId, actor: profiles.get(actorId)!, status: 'submitted', voteCount, submittedAt: now(), createdAt: now(), stitchedUrl: `/demo/${media}.mp4`, posterUrl: `/demo/${media}.jpg` };
     auditions.set(a.id, a);
     for (const side of sidesByCharacter.get(ch.id) ?? []) {
       const c: Clip = { id: uid(), ownerId: actorId, productionId: prod.id, lineId: side.id, auditionId: a.id, purpose: 'audition', storagePath: `demo/${a.id}/${side.id}.webm`, moderation: 'approved' };
       clips.set(c.id, c);
     }
   }
-  seedAudition('romeo', 'u-marcus', 12);
-  seedAudition('romeo', 'u-jo', 7);
-  seedAudition('juliet', 'u-ana', 15);
-  seedAudition('juliet', 'u-pri', 9);
-  seedAudition('nurse', 'u-pri', 4);
-  seedAudition('mercutio', 'u-marcus', 3);
+  seedAudition('juliet', 'u-ana', 15, 'ana-juliet');
+  seedAudition('romeo', 'u-marcus', 12, 'marcus-romeo');
+  seedAudition('juliet', 'u-pri', 9, 'priya-juliet');
+  seedAudition('romeo', 'u-jo', 7, 'jo-romeo');
+  seedAudition('nurse', 'u-pri', 4, 'priya-nurse');
+  seedAudition('mercutio', 'u-marcus', 3, 'marcus-mercutio');
 }
 
 // ---- helpers ------------------------------------------------------------------------------
@@ -93,6 +93,35 @@ function scriptOf(productionId: string) { const p = productions.get(productionId
 export const demoData: DataSource = {
   async listProductions() {
     return [...productions.values()].map((p) => ({ ...p, scriptTitle: scripts.get(p.scriptId)!.title, author: scripts.get(p.scriptId)!.author }));
+  },
+  async listFeed(opts = {}) {
+    const items: FeedItem[] = [];
+    for (const p of productions.values()) {
+      if (opts.productionId && p.id !== opts.productionId) continue;
+      const s = scripts.get(p.scriptId)!;
+      for (const ch of s.characters) {
+        if (opts.characterId && ch.id !== opts.characterId) continue;
+        const entries = [...auditions.values()].filter((a) => a.productionId === p.id && a.characterId === ch.id && ['submitted', 'won', 'lost'].includes(a.status)).sort((a, b) => b.voteCount - a.voteCount || (a.submittedAt ?? '').localeCompare(b.submittedAt ?? ''));
+        entries.forEach((a, i) => {
+          const sides = sidesByCharacter.get(ch.id) ?? [];
+          const paths = sides.map((side) => [...clips.values()].find((c) => c.auditionId === a.id && c.lineId === side.id)?.storagePath).filter((x): x is string => Boolean(x));
+          items.push({ audition: withActor(a), character: { id: ch.id, key: ch.key, name: ch.name, lineCount: ch.lineCount }, production: { id: p.id, slug: p.slug, title: p.title, status: p.status, auditionsCloseAt: p.auditionsCloseAt, entryFeeCents: p.entryFeeCents, houseFeeCents: p.houseFeeCents }, clipPaths: paths, rank: i + 1, entrants: entries.length, caption: sides[0]?.text });
+        });
+      }
+    }
+    // Interleave: round-robin across roles so two reels for the same role sit apart, best-ranked first.
+    const byRole = new Map<string, FeedItem[]>();
+    for (const it of items) { const k = it.character.id; (byRole.get(k) ?? byRole.set(k, []).get(k)!).push(it); }
+    const out: FeedItem[] = [];
+    let added = true;
+    while (added) { added = false; for (const q of byRole.values()) { const it = q.shift(); if (it) { out.push(it); added = true; } } }
+    return out.slice(0, opts.limit ?? 50);
+  },
+  async productionProgress(productionId) {
+    const s = scriptOf(productionId); if (!s) return { filmed: 0, total: 0, castSize: 0, rolesTotal: 0 };
+    const dialogue = s.lines.filter((l) => l.type === 'dialogue');
+    const filmedIds = new Set([...clips.values()].filter((c) => c.productionId === productionId && c.purpose === 'performance').map((c) => c.lineId));
+    return { filmed: dialogue.filter((l) => filmedIds.has(l.id)).length, total: dialogue.length, castSize: (cast.get(productionId) ?? []).length, rolesTotal: s.characters.length };
   },
   async getProductionBySlug(slug) {
     const production = [...productions.values()].find((p) => p.slug === slug);
@@ -134,10 +163,19 @@ export const demoData: DataSource = {
   async myLinesToFilm(productionId, actorId) {
     const s = scriptOf(productionId); if (!s) return [];
     const mine = (cast.get(productionId) ?? []).filter((c) => c.actorId === actorId).map((c) => c.characterId);
-    return s.lines.filter((l) => l.type === 'dialogue' && l.characterId && mine.includes(l.characterId)).map((line) => ({
-      line, character: s.characters.find((c) => c.id === line.characterId)!,
-      clip: [...clips.values()].find((c) => c.productionId === productionId && c.lineId === line.id && c.purpose === 'performance'),
-    }));
+    const out: FilmQueueItem[] = [];
+    s.lines.forEach((line, i) => {
+      if (!(line.type === 'dialogue' && line.characterId && mine.includes(line.characterId))) return;
+      let cue: FilmQueueItem['cue'];
+      for (let j = i - 1; j >= 0; j--) {
+        const prev = s.lines[j];
+        if (prev.type === 'heading') { cue = { kind: 'heading', text: prev.text }; break; }
+        if (prev.type === 'dialogue' && prev.characterId !== line.characterId) { cue = { kind: 'line', speaker: s.characters.find((c) => c.id === prev.characterId)?.name ?? 'Someone', text: prev.text }; break; }
+      }
+      out.push({ line, character: s.characters.find((c) => c.id === line.characterId)!, cue,
+        clip: [...clips.values()].find((c) => c.productionId === productionId && c.lineId === line.id && c.purpose === 'performance') });
+    });
+    return out;
   },
   async getProfile(id) { return profiles.get(id) ?? null; },
   async myBalanceCents(userId) { return ledger.filter((l) => l.userId === userId).reduce((s, l) => s + l.cents, 0); },

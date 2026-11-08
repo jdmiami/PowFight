@@ -3,7 +3,7 @@
  * bypass RLS (ledger, casting, render jobs) use the service-role admin client.
  */
 import { pickSides, estimateSeconds, slugify } from '@playhouse/script-parser';
-import type { Audition, CastMember, Character, Clip, Line, Production, Profile, Script } from '../types';
+import type { Audition, CastMember, Character, Clip, FeedItem, FilmQueueItem, Line, Production, Profile, Script } from '../types';
 import type { DataSource } from './index';
 import { supabaseServer } from '../supabase/server';
 import { supabaseAdmin } from '../supabase/admin';
@@ -17,7 +17,7 @@ const mapCharacter = (r: Row): Character => ({ id: r.id, key: r.key, name: r.nam
 const mapLine = (r: Row): Line => ({ id: r.id, idx: r.idx, sceneIdx: r.scene_idx, sceneTitle: r.scene_title, type: r.type, characterId: r.character_id, text: r.text, estSeconds: r.est_seconds });
 const mapProduction = (r: Row): Production => ({ id: r.id, scriptId: r.script_id, slug: r.slug, title: r.title, status: r.status, entryFeeCents: r.entry_fee_cents, houseFeeCents: r.house_fee_cents, auditionsCloseAt: r.auditions_close_at, filmingDeadlineAt: r.filming_deadline_at, finalVideoUrl: r.final_video_url, finalPosterUrl: r.final_poster_url });
 const mapAudition = (r: Row): Audition => ({ id: r.id, productionId: r.production_id, characterId: r.character_id, actorId: r.actor_id, actor: r.actor ? { id: r.actor.id, handle: r.actor.handle, displayName: r.actor.display_name, avatarUrl: r.actor.avatar_url } : { id: r.actor_id, handle: '?', displayName: 'Unknown' }, status: r.status, stitchedUrl: r.stitched_url, posterUrl: r.poster_url, voteCount: r.vote_count, submittedAt: r.submitted_at, createdAt: r.created_at });
-const mapClip = (r: Row): Clip => ({ id: r.id, ownerId: r.owner_id, productionId: r.production_id, lineId: r.line_id, auditionId: r.audition_id, purpose: r.purpose, storagePath: r.storage_path, durationMs: r.duration_ms, moderation: r.moderation });
+const mapClip = (r: Row): Clip => ({ id: r.id, ownerId: r.owner_id, productionId: r.production_id, lineId: r.line_id, auditionId: r.audition_id, purpose: r.purpose, storagePath: r.storage_path, durationMs: r.duration_ms, actionAtMs: r.action_at_ms, trimStartMs: r.trim_start_ms, trimEndMs: r.trim_end_ms, moderation: r.moderation });
 
 const AUDITION_SELECT = 'id, production_id, character_id, actor_id, status, stitched_url, poster_url, vote_count, submitted_at, created_at, actor:profiles(id, handle, display_name, avatar_url)';
 
@@ -31,6 +31,39 @@ export const supabaseData: DataSource = {
     const db = await supabaseServer();
     const { data } = await db.from('productions').select('*, script:scripts(title, author)').neq('status', 'cancelled').order('created_at', { ascending: false });
     return (data ?? []).map((r: Row) => ({ ...mapProduction(r), scriptTitle: r.script?.title ?? r.title, author: r.script?.author }));
+  },
+  async listFeed(opts = {}) {
+    const db = await supabaseServer();
+    let q = db.from('auditions').select(`${AUDITION_SELECT}, character:characters(id, key, name, line_count), production:productions(id, slug, title, status, auditions_close_at, entry_fee_cents, house_fee_cents)`).in('status', ['submitted', 'won', 'lost']).order('vote_count', { ascending: false }).limit(opts.limit ?? 50);
+    if (opts.productionId) q = q.eq('production_id', opts.productionId);
+    if (opts.characterId) q = q.eq('character_id', opts.characterId);
+    const { data } = await q;
+    const rows = (data ?? []) as Row[];
+    const ids = rows.map((r) => r.id);
+    const { data: clips } = ids.length ? await db.from('clips').select('audition_id, line_id, storage_path, line:script_lines(idx, text)').in('audition_id', ids).eq('purpose', 'audition').neq('moderation', 'rejected') : { data: [] };
+    const byRole = new Map<string, FeedItem[]>();
+    for (const r of rows) {
+      const mine = ((clips ?? []) as Row[]).filter((c) => c.audition_id === r.id).sort((a, b) => a.line.idx - b.line.idx);
+      const k = `${r.production_id}|${r.character_id}`;
+      const list = byRole.get(k) ?? byRole.set(k, []).get(k)!;
+      list.push({ audition: mapAudition(r), character: { id: r.character.id, key: r.character.key, name: r.character.name, lineCount: r.character.line_count }, production: { id: r.production.id, slug: r.production.slug, title: r.production.title, status: r.production.status, auditionsCloseAt: r.production.auditions_close_at, entryFeeCents: r.production.entry_fee_cents, houseFeeCents: r.production.house_fee_cents }, clipPaths: mine.map((c) => c.storage_path), rank: list.length + 1, entrants: 0, caption: mine[0]?.line?.text });
+    }
+    for (const list of byRole.values()) list.forEach((it) => (it.entrants = list.length));
+    const out: FeedItem[] = [];
+    let added = true;
+    while (added) { added = false; for (const q2 of byRole.values()) { const it = q2.shift(); if (it) { out.push(it); added = true; } } }
+    return out;
+  },
+  async productionProgress(productionId) {
+    const db = await supabaseServer();
+    const { data: p } = await db.from('productions').select('script_id').eq('id', productionId).single();
+    const [{ count: total }, { data: filmedRows }, { count: castSize }, { count: rolesTotal }] = await Promise.all([
+      db.from('script_lines').select('id', { count: 'exact', head: true }).eq('script_id', p!.script_id).eq('type', 'dialogue'),
+      db.from('clips').select('line_id').eq('production_id', productionId).eq('purpose', 'performance').eq('moderation', 'approved'),
+      db.from('cast_members').select('id', { count: 'exact', head: true }).eq('production_id', productionId),
+      db.from('characters').select('id', { count: 'exact', head: true }).eq('script_id', p!.script_id),
+    ]);
+    return { filmed: new Set((filmedRows ?? []).map((r: Row) => r.line_id)).size, total: total ?? 0, castSize: castSize ?? 0, rolesTotal: rolesTotal ?? 0 };
   },
   async getProductionBySlug(slug) {
     const db = await supabaseServer();
@@ -99,9 +132,26 @@ export const supabaseData: DataSource = {
     const { data: members } = await db.from('cast_members').select('character_id, character:characters(*)').eq('production_id', productionId).eq('actor_id', actorId);
     if (!members?.length) return [];
     const ids = members.map((m: Row) => m.character_id);
-    const { data: lines } = await db.from('script_lines').select('*').in('character_id', ids).eq('type', 'dialogue').order('idx');
-    const { data: clips } = await db.from('clips').select('*').eq('production_id', productionId).eq('purpose', 'performance').eq('owner_id', actorId);
-    return (lines ?? []).map((l: Row) => ({ line: mapLine(l), character: mapCharacter(members.find((m: Row) => m.character_id === l.character_id)!.character), clip: (clips ?? []).filter((c: Row) => c.line_id === l.id).map(mapClip)[0] }));
+    const { data: prod } = await db.from('productions').select('script_id').eq('id', productionId).single();
+    const [{ data: all }, { data: chars }, { data: clips }] = await Promise.all([
+      db.from('script_lines').select('*').eq('script_id', prod!.script_id).order('idx'),
+      db.from('characters').select('id, name').eq('script_id', prod!.script_id),
+      db.from('clips').select('*').eq('production_id', productionId).eq('purpose', 'performance').eq('owner_id', actorId),
+    ]);
+    const nameOf = new Map((chars ?? []).map((c: Row) => [c.id, c.name]));
+    const lines = (all ?? []) as Row[];
+    const out: FilmQueueItem[] = [];
+    lines.forEach((l, i) => {
+      if (!(l.type === 'dialogue' && ids.includes(l.character_id))) return;
+      let cue: FilmQueueItem['cue'];
+      for (let j = i - 1; j >= 0; j--) {
+        const prev = lines[j];
+        if (prev.type === 'heading') { cue = { kind: 'heading', text: prev.text }; break; }
+        if (prev.type === 'dialogue' && prev.character_id !== l.character_id) { cue = { kind: 'line', speaker: nameOf.get(prev.character_id) ?? 'Someone', text: prev.text }; break; }
+      }
+      out.push({ line: mapLine(l), character: mapCharacter(members.find((m: Row) => m.character_id === l.character_id)!.character), cue, clip: (clips ?? []).filter((c: Row) => c.line_id === l.id).map(mapClip)[0] });
+    });
+    return out;
   },
   async getProfile(id) {
     const db = await supabaseServer();
@@ -129,7 +179,7 @@ export const supabaseData: DataSource = {
   },
   async addClip(input) {
     const db = await supabaseServer();
-    const { data, error } = await db.from('clips').insert({ owner_id: input.ownerId, production_id: input.productionId, line_id: input.lineId, audition_id: input.auditionId ?? null, purpose: input.purpose, storage_path: input.storagePath, duration_ms: input.durationMs ?? null, moderation: 'approved' }).select('*').single();
+    const { data, error } = await db.from('clips').insert({ owner_id: input.ownerId, production_id: input.productionId, line_id: input.lineId, audition_id: input.auditionId ?? null, purpose: input.purpose, storage_path: input.storagePath, duration_ms: input.durationMs ?? null, action_at_ms: input.actionAtMs ?? null, trim_start_ms: input.trimStartMs ?? null, trim_end_ms: input.trimEndMs ?? null, moderation: 'approved' }).select('*').single();
     if (error) throw error;
     return mapClip(data);
   },

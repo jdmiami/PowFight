@@ -1,9 +1,9 @@
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
-import { concat, normalize, titleCard, captionSpeaker, poster } from './ffmpeg.ts';
+import { concat, normalize, titleCard, poster } from './ffmpeg.ts';
 
 export type Segment =
-  | { kind: 'clip'; file: string; speaker?: string }
+  | { kind: 'clip'; file: string; speaker?: string; trimStartMs?: number | null; trimEndMs?: number | null }
   | { kind: 'card'; text: string; small?: string; seconds?: number };
 
 export interface StitchPlan {
@@ -30,12 +30,8 @@ export async function stitch(plan: StitchPlan): Promise<{ output: string; poster
     const out = path.join(plan.workDir, `seg-${n}.mp4`);
     if (seg.kind === 'card') {
       await titleCard(seg.text, out, seg.seconds ?? 3, { small: seg.small });
-    } else if (plan.burnSpeakerNames && seg.speaker) {
-      const norm = path.join(plan.workDir, `norm-${n}.mp4`);
-      await normalize(seg.file, norm);
-      await captionSpeaker(norm, seg.speaker, out);
     } else {
-      await normalize(seg.file, out);
+      await normalize(seg.file, out, { trimStartMs: seg.trimStartMs, trimEndMs: seg.trimEndMs, speaker: plan.burnSpeakerNames ? seg.speaker : undefined });
     }
     prepared.push(out);
     plan.onProgress?.(i + 1, total);
