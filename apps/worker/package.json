@@ -1,0 +1,13 @@
+{
+  "name": "@playhouse/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Render worker: normalizes clips with ffmpeg and stitches audition reels and full productions.",
+  "scripts": {
+    "start": "node --experimental-strip-types src/worker.ts",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  },
+  "dependencies": { "@supabase/supabase-js": "^2.49.0" },
+  "devDependencies": { "typescript": "^5", "@types/node": "^22" }
+}
