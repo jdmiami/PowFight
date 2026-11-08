@@ -23,8 +23,9 @@ export function ReelPlayer(p: Props) {
   useEffect(() => { const v = ref.current; if (v) { v.load(); v.play().catch(() => setMuted(true)); } }, [i]);
   const chapter = p.stitchedUrl ? undefined : p.chapters[i];
   return (
-    <div className="fixed inset-0 bg-house z-30 flex flex-col" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="relative flex-1 overflow-hidden">
+    <div className="fixed inset-0 lg:left-64 bg-house z-30 flex flex-col md:items-center md:justify-center" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {p.posterUrl && <div className="stage-backdrop hidden md:block" style={{ backgroundImage: `url(${p.posterUrl})` }} aria-hidden />}
+      <div className="relative flex-1 md:flex-none overflow-hidden stage">
         {urls.length ? (
           <video ref={ref} src={urls[i]} poster={p.posterUrl ?? undefined} muted={muted} playsInline autoPlay onEnded={() => setI((k) => (k + 1) % urls.length)} onClick={() => { const v = ref.current; if (v) (v.paused ? v.play() : v.pause()); }} className="absolute inset-0 h-full w-full object-cover" />
         ) : (

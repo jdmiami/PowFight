@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${fraunces.variable} ${instrument.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {children}
+        <div className="with-sidebar flex-1 flex flex-col min-h-full">{children}</div>
         {isDemo && <span className="fixed top-2 right-2 z-50 pill pill-glass text-[10px] pointer-events-none" aria-label="Demo mode">demo</span>}
         <Nav />
       </body>

@@ -364,7 +364,7 @@ export function Recorder({ lines, mode, uploadUrl, doneLineIds = [], cues = {}, 
 
 function Takeover({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   void onClose;
-  return <div className="fixed inset-0 z-50 bg-black text-ink-1 overflow-hidden" role="dialog" aria-modal="true" style={{ height: '100dvh' }}>{children}</div>;
+  return <div className="fixed inset-0 z-50 bg-black text-ink-1 overflow-hidden md:flex md:items-center md:justify-center" role="dialog" aria-modal="true" style={{ height: '100dvh' }}><div className="stage">{children}</div></div>;
 }
 
 function CameraState({ cam, retry }: { cam: Cam; retry: () => void }) {

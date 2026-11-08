@@ -40,13 +40,13 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
   return (
     <Page back={{ href: '/plays', label: 'Plays' }} className="!px-0">
       {/* Poster header */}
-      <header className="relative mx-0 overflow-hidden" style={{ minHeight: 300 }}>
+      <header className="relative mx-0 overflow-hidden lg:rounded-3xl lg:border lg:border-line" style={{ minHeight: heroFace ? 300 : 220 }}>
         {heroFace ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={heroFace} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40 scale-125 blur-xl" />
         ) : <div className="absolute inset-0 curtain-panel opacity-60" />}
         <div className="absolute inset-0 bg-gradient-to-t from-house via-house/60 to-house/20" />
-        <div className="relative px-4 pt-10 pb-5">
+        <div className="relative px-4 md:px-8 pt-10 pb-5">
           <Bulbs count={16} chase={production.status === 'premiered'} className="justify-start" />
           <p className="t-label text-spot mt-3">{casting ? 'Now casting' : production.status === 'premiered' ? 'Now playing' : production.status === 'rendering' ? 'Stitching' : 'In rehearsal'}</p>
           <h1 className="t-display mt-1">{production.title}</h1>
@@ -61,14 +61,14 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
         </div>
       </header>
 
-      <div className="px-4">
+      <div className="px-4 md:px-8 lg:px-0 lg:mt-6 lg:grid lg:grid-cols-[1fr_400px] lg:gap-8 lg:items-start">
         {/* Leading reels */}
         {live.length > 0 && (
-          <section className="mt-2">
+          <section className="mt-2 lg:order-2 lg:sticky lg:top-8">
             <div className="flex items-baseline justify-between mb-3"><h2 className="t-label text-ink-3">{casting ? 'Leading each role' : 'The cast'}</h2><Link href="/" className="t-caption text-ink-2">Watch all</Link></div>
-            <div className="-mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2" style={{ scrollbarWidth: 'none' }}>
+            <div className="-mx-4 px-4 md:-mx-8 md:px-8 lg:mx-0 lg:px-0 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 lg:grid lg:grid-cols-2 lg:overflow-visible" style={{ scrollbarWidth: 'none' }}>
               {leaders.map(({ r }) => r.leader && (
-                <div key={r.character.id} className="w-[46%] shrink-0 snap-start">
+                <div key={r.character.id} className="w-[46%] md:w-[30%] lg:w-auto shrink-0 snap-start">
                   <PosterFrame a={r.leader} roleName={r.character.name} rank={1} href={`/plays/${slug}/roles/${r.character.key}`}
                     vote={user ? { voted: myVotes[r.character.id] === r.leader.id, currentPickId: myVotes[r.character.id], open: casting, signedIn: true, isMine: r.leader.actorId === user.id } : { voted: false, open: casting, signedIn: false, isMine: false }} />
                 </div>
@@ -78,7 +78,7 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
         )}
 
         {/* Roles */}
-        <section className="mt-6">
+        <section className="mt-6 lg:mt-2 lg:order-1">
           <h2 className="t-label text-ink-3 mb-3">Roles</h2>
           <ul className="card divide-y divide-line">
             {live.map(({ character, entrants, leader }) => {
@@ -127,8 +127,8 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
           </ul>
         </section>
 
-        <p className="t-caption text-ink-3 mt-6">{script.source}{script.license ? ` · ${script.license}` : ''}</p>
-        {casting && (user?.isAdmin || isDemo) && <div className="mt-6 border-t border-line pt-4"><p className="t-caption text-ink-3 mb-2">{isDemo ? 'Demo control (hidden in production)' : 'Admin'}</p><CloseCastingButton productionId={production.id} /></div>}
+        <p className="t-caption text-ink-3 mt-6 lg:order-3 lg:col-span-2">{script.source}{script.license ? ` · ${script.license}` : ''}</p>
+        {casting && (user?.isAdmin || isDemo) && <div className="mt-6 border-t border-line pt-4 lg:order-4 lg:col-span-2"><p className="t-caption text-ink-3 mb-2">{isDemo ? 'Demo control (hidden in production)' : 'Admin'}</p><CloseCastingButton productionId={production.id} /></div>}
       </div>
     </Page>
   );

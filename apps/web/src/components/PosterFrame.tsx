@@ -35,10 +35,10 @@ export function PosterFrame({ a, roleName, rank, href, vote }: Props) {
         </div>
         {vote && !vote.isMine && (
           <div className="pointer-events-auto shrink-0">
-            <Ticket auditionId={a.id} count={a.voteCount} voted={vote.voted} currentPickId={vote.currentPickId} currentPickName={vote.currentPickName} open={vote.open} signedIn={vote.signedIn} compact />
+            <Ticket auditionId={a.id} count={a.voteCount} voted={vote.voted} currentPickId={vote.currentPickId} currentPickName={vote.currentPickName} open={vote.open} signedIn={vote.signedIn} tiny />
           </div>
         )}
-        {vote?.isMine && <span className="pill pill-glass text-[11px]"><span className="t-num">{a.voteCount}</span> votes · yours</span>}
+        {vote?.isMine && <span className="pill pill-glass text-[11px]"><span className="t-num">{a.voteCount}</span> · yours</span>}
       </div>
     </article>
   );

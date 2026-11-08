@@ -39,12 +39,12 @@ export default async function Plays() {
       {groups.map((g) => (
         <section key={g.key} className="mb-7">
           <h2 className="t-label text-ink-3 mb-3">{g.title}</h2>
-          <div className="space-y-3">
-            {g.items.map((p) => {
+          <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-4">
+            {g.items.map((p, i) => {
               const face = faces.get(p.id);
               const href = p.status === 'premiered' ? `/plays/${p.slug}/watch` : `/plays/${p.slug}`;
               return (
-                <Link key={p.id} href={href} className="press card flex overflow-hidden">
+                <Link key={p.id} href={href} className="press rise card flex overflow-hidden" style={{ ['--i' as string]: i }}>
                   <div className="relative w-24 shrink-0 aspect-[9/16] bg-curtain overflow-hidden">
                     {face ? (
                       // eslint-disable-next-line @next/next/no-img-element
